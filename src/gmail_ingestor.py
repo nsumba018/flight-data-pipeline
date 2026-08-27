@@ -4,6 +4,7 @@ import os
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
+from s3_uploader import upload_attachment_to_s3
 
 from dotenv import load_dotenv
 
@@ -150,7 +151,7 @@ def fetch_email(mail, uid):
 # EXTRACT ATTACHMENT
 # =========================================================
 
-def extract_attachment(mail, uid):
+def extract_and_upload_attachment(mail, uid):
 
     message = fetch_email(
         mail,
@@ -166,35 +167,16 @@ def extract_attachment(mail, uid):
 
         if filename == ATTACHMENT_NAME:
 
-            RAW_DATA_DIR.mkdir(
-                parents=True,
-                exist_ok=True
-            )
-
-            uid_number = uid.decode()
-
-            output_filename = (
-                f"X2-FS_uid_{uid_number}.txt"
-            )
-
-            output_path = (
-                RAW_DATA_DIR / output_filename
-            )
-
-            with open(
-                output_path,
-                "wb"
-            ) as file:
-
-                file.write(
-                    part.get_payload(
-                        decode=True
-                    )
+            attachment_bytes = (
+                part.get_payload(
+                    decode=True
                 )
+            )
 
-            print(
-                f"Extracted UID {uid_number}: "
-                f"{output_path}"
+            upload_attachment_to_s3(
+                attachment_bytes,
+                uid,
+                filename
             )
 
             return True
@@ -224,7 +206,7 @@ def initial_load(mail, uids):
 
     for uid in uids:
 
-        extract_attachment(
+        extract_and_upload_attachment(
             mail,
             uid
         )
@@ -310,7 +292,7 @@ def main():
 
             for uid in new_uids:
 
-                extract_attachment(
+                extract_and_upload_attachment(
                     mail,
                     uid
                 )
